@@ -90,12 +90,33 @@ export default function Settings() {
       } catch (error) {
         // If API fails, return default data so Settings page still works
         return {
-          store_name: "Usman Hardware",
-          store_address: "Default Address",
-          store_phone: "Default Phone",
-          store_email: "admin@usmanhardware.com",
-          tax_rate: 0,
-          currency: "PKR"
+          profile: {
+            name: "Admin",
+            email: "admin@usmanhardware.com",
+            phone: "",
+            role: "Owner",
+          },
+          store: {
+            name: "Usman Hardware",
+            address: "",
+            currency: "PKR",
+            taxRate: 0,
+            lowStockThreshold: 10,
+            openTime: "09:00",
+            closeTime: "21:00",
+          },
+          notifications: {
+            newOrder: true,
+            lowStock: true,
+            paymentDue: true,
+            dailyTarget: false,
+          },
+          system: {
+            autoBackup: false,
+            dataRetention: 30,
+            cacheEnabled: true,
+            darkMode: true,
+          },
         };
       }
     },
