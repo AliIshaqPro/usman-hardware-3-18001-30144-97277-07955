@@ -237,31 +237,31 @@ export const PincodeProtection: React.FC<PincodeProtectionProps> = ({
       {/* Rotating Circular Bars */}
       <div className="absolute inset-0 flex items-center justify-center">
         {/* Outer Ring */}
-        <div className="absolute w-96 h-96 border-4 border-primary/30 rounded-full animate-spin" style={{ animationDuration: '20s' }}>
-          <div className="absolute top-0 left-1/2 w-2 h-8 bg-primary rounded-full transform -translate-x-1/2 -translate-y-2"></div>
-          <div className="absolute bottom-0 left-1/2 w-2 h-8 bg-primary rounded-full transform -translate-x-1/2 translate-y-2"></div>
-          <div className="absolute left-0 top-1/2 w-8 h-2 bg-primary rounded-full transform -translate-y-1/2 -translate-x-2"></div>
-          <div className="absolute right-0 top-1/2 w-8 h-2 bg-primary rounded-full transform -translate-y-1/2 translate-x-2"></div>
+        <div className="absolute w-[600px] h-[600px] border-4 border-primary/40 rounded-full animate-spin" style={{ animationDuration: '20s' }}>
+          <div className="absolute top-0 left-1/2 w-3 h-12 bg-primary rounded-full transform -translate-x-1/2 -translate-y-4"></div>
+          <div className="absolute bottom-0 left-1/2 w-3 h-12 bg-primary rounded-full transform -translate-x-1/2 translate-y-4"></div>
+          <div className="absolute left-0 top-1/2 w-12 h-3 bg-primary rounded-full transform -translate-y-1/2 -translate-x-4"></div>
+          <div className="absolute right-0 top-1/2 w-12 h-3 bg-primary rounded-full transform -translate-y-1/2 translate-x-4"></div>
         </div>
 
         {/* Middle Ring */}
-        <div className="absolute w-80 h-80 border-2 border-primary/40 rounded-full animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }}>
-          <div className="absolute top-4 left-1/2 w-1 h-6 bg-primary rounded-full transform -translate-x-1/2"></div>
-          <div className="absolute bottom-4 left-1/2 w-1 h-6 bg-primary rounded-full transform -translate-x-1/2"></div>
-          <div className="absolute left-4 top-1/2 w-6 h-1 bg-primary rounded-full transform -translate-y-1/2"></div>
-          <div className="absolute right-4 top-1/2 w-6 h-1 bg-primary rounded-full transform -translate-y-1/2"></div>
+        <div className="absolute w-[500px] h-[500px] border-2 border-primary/50 rounded-full animate-spin" style={{ animationDuration: '15s', animationDirection: 'reverse' }}>
+          <div className="absolute top-4 left-1/2 w-2 h-8 bg-primary rounded-full transform -translate-x-1/2"></div>
+          <div className="absolute bottom-4 left-1/2 w-2 h-8 bg-primary rounded-full transform -translate-x-1/2"></div>
+          <div className="absolute left-4 top-1/2 w-8 h-2 bg-primary rounded-full transform -translate-y-1/2"></div>
+          <div className="absolute right-4 top-1/2 w-8 h-2 bg-primary rounded-full transform -translate-y-1/2"></div>
         </div>
 
         {/* Inner Ring */}
-        <div className="absolute w-64 h-64 border border-primary/50 rounded-full animate-spin" style={{ animationDuration: '10s' }}>
+        <div className="absolute w-[400px] h-[400px] border border-primary/60 rounded-full animate-spin" style={{ animationDuration: '10s' }}>
           {[...Array(8)].map((_, i) => (
             <div
               key={i}
-              className="absolute w-1 h-4 bg-primary rounded-full"
+              className="absolute w-2 h-6 bg-primary rounded-full"
               style={{
-                top: '10px',
+                top: '15px',
                 left: '50%',
-                transformOrigin: '50% 118px',
+                transformOrigin: '50% 185px',
                 transform: `translateX(-50%) rotate(${i * 45}deg)`
               }}
             />
@@ -307,7 +307,7 @@ export const PincodeProtection: React.FC<PincodeProtectionProps> = ({
             {/* Holographic Frame */}
             <div className="absolute -inset-4 bg-gradient-to-r from-primary/10 via-primary/10 to-primary/10 rounded-2xl blur-xl animate-pulse"></div>
             
-            <Card className="relative backdrop-blur-xl bg-card/80 border border-primary/30 shadow-2xl shadow-primary/20 rounded-2xl overflow-hidden">
+            <Card className="relative backdrop-blur-xl bg-card/80 border border-primary/30 shadow-2xl shadow-primary/20 rounded-2xl overflow-hidden max-w-md mx-auto">
               {/* Tech Frame */}
               <div className="absolute inset-0 border border-primary/20 rounded-2xl"></div>
               <div className="absolute top-0 left-0 w-4 h-4 border-t-2 border-l-2 border-primary rounded-tl-2xl"></div>
@@ -398,10 +398,6 @@ export const PincodeProtection: React.FC<PincodeProtectionProps> = ({
                         </div>
                       </Button>
                     )}
-                    
-                      <p className="text-center text-sm text-muted-foreground">
-                        Press "Temporal Access" before entering the PIN to unlock all pages for 1 hour. Without it, a correct PIN unlocks only this page until you navigate away.
-                      </p>
                   </div>
                 </div>
               </CardContent>

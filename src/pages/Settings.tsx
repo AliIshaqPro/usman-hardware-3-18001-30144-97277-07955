@@ -84,7 +84,23 @@ export default function Settings() {
 
   const { data: settingsData, isLoading } = useQuery({
     queryKey: ['settings'],
-    queryFn: () => settingsApi.getSettings(),
+    queryFn: async () => {
+      try {
+        return await settingsApi.getSettings();
+      } catch (error) {
+        // If API fails, return default data so Settings page still works
+        return {
+          store_name: "Usman Hardware",
+          store_address: "Default Address",
+          store_phone: "Default Phone",
+          store_email: "admin@usmanhardware.com",
+          tax_rate: 0,
+          currency: "PKR"
+        };
+      }
+    },
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   const updateSettingsMutation = useMutation({
@@ -106,8 +122,10 @@ export default function Settings() {
   });
 
   useEffect(() => {
-    if (settingsData?.data) {
-      setFormData(settingsData.data);
+    if (settingsData) {
+      // Handle both API response format and fallback format
+      const data = 'data' in settingsData ? settingsData.data : settingsData;
+      setFormData(data);
     }
   }, [settingsData]);
 
