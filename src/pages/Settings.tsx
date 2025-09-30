@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from "react";
 import { apiConfig } from "@/utils/apiConfig";
 import { useFont, fontOptions } from "@/components/FontProvider";
+import { z } from "zod";
+import { verifyPin, changePin } from "@/utils/pin";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -22,6 +24,63 @@ export default function Settings() {
   const { font, setFont } = useFont();
   const [formData, setFormData] = useState<SettingsData | null>(null);
   const [apiBaseUrl, setApiBaseUrl] = useState(apiConfig.getBaseUrl());
+
+  const ADMIN_PASSWORD = "mirzausman@123";
+  const [adminPassword, setAdminPassword] = useState("");
+  const [oldPin, setOldPin] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [confirmPin, setConfirmPin] = useState("");
+  const [changing, setChanging] = useState(false);
+
+  const handleChangePin = async () => {
+    try {
+      setChanging(true);
+      const pinSchema = z.string().regex(/^\d{7}$/, { message: "Pincode must be exactly 7 digits" });
+
+      if (adminPassword !== ADMIN_PASSWORD) {
+        toast({
+          title: "Invalid credentials",
+          description: "Admin password is incorrect.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      pinSchema.parse(oldPin);
+      pinSchema.parse(newPin);
+      if (newPin !== confirmPin) {
+        toast({ title: "Mismatch", description: "New pincode and confirmation do not match.", variant: "destructive" });
+        return;
+      }
+
+      const okOld = await verifyPin(oldPin);
+      if (!okOld) {
+        toast({ title: "Invalid current pincode", description: "Please enter the correct current pincode.", variant: "destructive" });
+        return;
+      }
+
+      if (oldPin === newPin) {
+        toast({ title: "No change", description: "New pincode must be different from current.", variant: "destructive" });
+        return;
+      }
+
+      const changed = await changePin(oldPin, newPin);
+      if (!changed) {
+        toast({ title: "Update failed", description: "Current pincode is incorrect.", variant: "destructive" });
+        return;
+      }
+
+      setAdminPassword("");
+      setOldPin("");
+      setNewPin("");
+      setConfirmPin("");
+      toast({ title: "Pincode updated", description: "Keep your pincode somewhere safe." });
+    } catch (e: any) {
+      toast({ title: "Validation error", description: e?.message || "Please check your inputs.", variant: "destructive" });
+    } finally {
+      setChanging(false);
+    }
+  };
 
   const { data: settingsData, isLoading } = useQuery({
     queryKey: ['settings'],
@@ -410,7 +469,7 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
-        </TabsContent
+        </TabsContent>
 
         <TabsContent value="api" className="space-y-6">
           <Card>

@@ -387,8 +387,8 @@ export const PincodeProtection: React.FC<PincodeProtectionProps> = ({
                     {!isTempUnlocked && (
                       <Button
                         onClick={handleTempUnlock}
-                        disabled={isLocked || !isPinVerified}
-                        className="w-full h-14 bg-gradient-to-r from-primary/50 to-primary/70 hover:from-primary/70 hover:to-primary/90 text-primary-foreground font-mono font-bold text-lg border-2 border-primary/40 hover:border-primary/60 transition-all duration-300 rounded-lg backdrop-blur-sm relative overflow-hidden group disabled:opacity-50"
+                        title="Press before entering PIN for 1-hour access"
+                        className="w-full h-14 bg-gradient-to-r from-primary/50 to-primary/70 hover:from-primary/70 hover:to-primary/90 text-primary-foreground font-mono font-bold text-lg border-2 border-primary/40 hover:border-primary/60 transition-all duration-300 rounded-lg backdrop-blur-sm relative overflow-hidden group"
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary-foreground/20 to-transparent -skew-x-12 translate-x-full transition-transform duration-700 group-hover:translate-x-0"></div>
                         <div className="flex items-center gap-3 relative z-10">
@@ -399,11 +399,9 @@ export const PincodeProtection: React.FC<PincodeProtectionProps> = ({
                       </Button>
                     )}
                     
-                    {isPinVerified && !isTempUnlocked && (
                       <p className="text-center text-sm text-muted-foreground">
-                        Click above to activate 1-hour access
+                        Press "Temporal Access" before entering the PIN to unlock all pages for 1 hour. Without it, a correct PIN unlocks only this page until you navigate away.
                       </p>
-                    )}
                   </div>
                 </div>
               </CardContent>
