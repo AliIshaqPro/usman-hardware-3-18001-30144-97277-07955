@@ -81,8 +81,8 @@ const Orders = () => {
     try {
       setLoading(true);
       const params: any = {
-        limit: ITEMS_PER_PAGE,
-        page: currentPage
+        limit: debouncedSearchTerm ? 10000 : ITEMS_PER_PAGE, // Fetch all when searching
+        page: debouncedSearchTerm ? 1 : currentPage // Always page 1 when searching
       };
 
       if (filterStatus !== "all") {
@@ -101,10 +101,6 @@ const Orders = () => {
         params.dateTo = dateTo;
       }
 
-      if (debouncedSearchTerm) {
-        params.search = debouncedSearchTerm;
-      }
-
       if (filterPaymentMethod !== "all") {
         params.paymentMethod = filterPaymentMethod;
       }
@@ -112,15 +108,46 @@ const Orders = () => {
       const response = await salesApi.getAll(params);
       
       if (response.success) {
-        setOrders(response.data.sales || []);
-        setTotalPages(response.data.pagination?.totalPages || 1);
+        let filteredSales = response.data.sales || [];
         
-        // Update summary
-        setSummary(response.data.summary || {
-          totalSales: 0,
-          totalOrders: 0,
-          avgOrderValue: 0
-        });
+        // Client-side filtering for search term
+        if (debouncedSearchTerm) {
+          const searchLower = debouncedSearchTerm.toLowerCase();
+          filteredSales = filteredSales.filter((sale: Sale) => {
+            return (
+              sale.orderNumber?.toLowerCase().includes(searchLower) ||
+              sale.customerName?.toLowerCase().includes(searchLower) ||
+              sale.createdBy?.toLowerCase().includes(searchLower) ||
+              sale.paymentMethod?.toLowerCase().includes(searchLower)
+            );
+          });
+          
+          // Client-side pagination when searching
+          const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+          const endIndex = startIndex + ITEMS_PER_PAGE;
+          const paginatedSales = filteredSales.slice(startIndex, endIndex);
+          
+          setOrders(paginatedSales);
+          setTotalPages(Math.ceil(filteredSales.length / ITEMS_PER_PAGE));
+          
+          // Update summary for filtered results
+          const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
+          setSummary({
+            totalSales: totalSales,
+            totalOrders: filteredSales.length,
+            avgOrderValue: filteredSales.length > 0 ? totalSales / filteredSales.length : 0
+          });
+        } else {
+          setOrders(filteredSales);
+          setTotalPages(response.data.pagination?.totalPages || 1);
+          
+          // Update summary from server
+          setSummary(response.data.summary || {
+            totalSales: 0,
+            totalOrders: 0,
+            avgOrderValue: 0
+          });
+        }
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -144,9 +171,6 @@ const Orders = () => {
     await generateOrderPDF(order);
   };
 
-  const handleSearch = () => {
-    setCurrentPage(1); // Reset to page 1 when searching
-  };
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -297,7 +321,6 @@ const Orders = () => {
             setDateTo={setDateTo}
             filterCustomer={filterCustomer}
             setFilterCustomer={setFilterCustomer}
-            onSearch={handleSearch}
           />
 
           <OrdersTable
