@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi } from "@/services/api";
@@ -44,6 +44,7 @@ const Orders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterPaymentMethod, setFilterPaymentMethod] = useState("all");
@@ -62,9 +63,19 @@ const Orders = () => {
   // Items per page for server-side pagination
   const ITEMS_PER_PAGE = 20;
 
+  // Debounce search term
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+      setCurrentPage(1); // Reset to page 1 when search changes
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
   useEffect(() => {
     fetchOrders();
-  }, [filterStatus, filterCustomer, dateFrom, dateTo, currentPage, searchTerm, filterPaymentMethod]);
+  }, [filterStatus, filterCustomer, dateFrom, dateTo, currentPage, debouncedSearchTerm, filterPaymentMethod]);
 
   const fetchOrders = async () => {
     try {
@@ -90,8 +101,8 @@ const Orders = () => {
         params.dateTo = dateTo;
       }
 
-      if (searchTerm) {
-        params.search = searchTerm;
+      if (debouncedSearchTerm) {
+        params.search = debouncedSearchTerm;
       }
 
       if (filterPaymentMethod !== "all") {
