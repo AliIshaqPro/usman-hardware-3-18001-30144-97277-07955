@@ -64,12 +64,7 @@ const Orders = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, [filterStatus, filterCustomer, dateFrom, dateTo, currentPage]);
-
-  // Reset to page 1 when search term changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, filterPaymentMethod]);
+  }, [filterStatus, filterCustomer, dateFrom, dateTo, currentPage, searchTerm, filterPaymentMethod]);
 
   const fetchOrders = async () => {
     try {
@@ -93,6 +88,14 @@ const Orders = () => {
 
       if (dateTo) {
         params.dateTo = dateTo;
+      }
+
+      if (searchTerm) {
+        params.search = searchTerm;
+      }
+
+      if (filterPaymentMethod !== "all") {
+        params.paymentMethod = filterPaymentMethod;
       }
 
       const response = await salesApi.getAll(params);
@@ -132,20 +135,7 @@ const Orders = () => {
 
   const handleSearch = () => {
     setCurrentPage(1); // Reset to page 1 when searching
-    // No need to fetch again since we're doing client-side filtering
   };
-
-  // Filter orders based on search term and payment method (client-side for current page)
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = !searchTerm || 
-      order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (order.customerName && order.customerName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      order.items.some(item => item.productName.toLowerCase().includes(searchTerm.toLowerCase()));
-    
-    const matchesPaymentMethod = filterPaymentMethod === "all" || order.paymentMethod === filterPaymentMethod;
-    
-    return matchesSearch && matchesPaymentMethod;
-  });
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
@@ -300,7 +290,7 @@ const Orders = () => {
           />
 
           <OrdersTable
-            orders={filteredOrders}
+            orders={orders}
             currentPage={currentPage}
             totalPages={totalPages}
             onViewOrder={handleViewOrder}

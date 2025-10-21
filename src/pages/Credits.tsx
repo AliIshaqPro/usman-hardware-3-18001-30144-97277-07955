@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
-import { CreditCard, Search, Plus, Users, AlertCircle, Phone, Mail, MapPin, DollarSign, History, MessageCircle, Download, RefreshCw, Clock, Send } from "lucide-react";
+import { CreditCard, Search, Plus, Users, AlertCircle, Phone, Mail, MapPin, DollarSign, History, MessageCircle, RefreshCw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { customersApi } from "@/services/api";
 import { useCustomerBalance } from "@/hooks/useCustomerBalance";
@@ -30,6 +29,8 @@ const Credits = () => {
   const [isTransactionHistoryOpen, setIsTransactionHistoryOpen] = useState(false);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isMessageModalOpen, setIsMessageModalOpen] = useState(false);
+  const [messageText, setMessageText] = useState("");
 
   const fetchAllCustomers = useCallback(async () => {
     try {
@@ -135,6 +136,29 @@ const Credits = () => {
     } finally {
       setIsSyncing(false);
     }
+  };
+
+  const handleSendMessage = (customer: any) => {
+    setSelectedCustomer(customer);
+    setMessageText(`Dear ${customer.name}, your outstanding balance is PKR ${(customer.currentBalance || 0).toLocaleString()}. Please settle your dues at your earliest convenience. Thank you!`);
+    setIsMessageModalOpen(true);
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!selectedCustomer?.phone) {
+      toast({
+        title: "No Phone Number",
+        description: "Customer doesn't have a phone number registered.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const phone = selectedCustomer.phone.replace(/[^0-9]/g, '');
+    const message = encodeURIComponent(messageText);
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+    setIsMessageModalOpen(false);
+    setSelectedCustomer(null);
   };
 
   // Filter logic
@@ -261,105 +285,95 @@ const Credits = () => {
         </CardContent>
       </Card>
 
-      {/* Main Content Tabs */}
-      <Tabs defaultValue="customers" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="customers">Customers</TabsTrigger>
-          <TabsTrigger value="whatsapp">WhatsApp Automation</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="customers" className="space-y-4">
-          {/* Customers List */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {/* Customers List */}
+      <Card>
+        <CardContent className="p-4">
+          <div className="space-y-2">
             {filteredCustomers.length === 0 ? (
-              <Card className="col-span-full">
-                <CardContent className="p-8 text-center">
-                  <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <p className="text-lg text-muted-foreground">No customers with credits found</p>
-                </CardContent>
-              </Card>
+              <div className="text-center py-8">
+                <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-lg text-muted-foreground">No customers with credits found</p>
+              </div>
             ) : (
               filteredCustomers.map((customer) => (
-                <Card key={customer.id} className="hover:shadow-lg transition-shadow">
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="font-bold text-lg text-foreground">{customer.name}</h3>
-                        <Badge variant={customer.type === "Permanent" ? "default" : "secondary"} className="mt-1">
+                <div
+                  key={customer.id}
+                  className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent/50 transition-colors"
+                >
+                  <div className="flex items-center gap-4 flex-1">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground truncate">{customer.name}</h3>
+                        <Badge variant={customer.type === "Permanent" ? "default" : "secondary"} className="shrink-0">
                           {customer.type}
                         </Badge>
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">Outstanding</p>
-                        <p className="text-xl font-bold text-red-600">PKR {(customer.currentBalance || 0).toLocaleString()}</p>
+                      <div className="flex items-center gap-4 mt-1 text-sm text-muted-foreground">
+                        {customer.phone && (
+                          <div className="flex items-center gap-1">
+                            <Phone className="h-3 w-3" />
+                            <span>{customer.phone}</span>
+                          </div>
+                        )}
+                        {customer.email && (
+                          <div className="flex items-center gap-1">
+                            <Mail className="h-3 w-3" />
+                            <span className="truncate">{customer.email}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
-                    
-                    <div className="space-y-2 mb-4">
-                      {customer.phone && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Phone className="h-4 w-4" />
-                          <span>{customer.phone}</span>
-                        </div>
-                      )}
-                      {customer.email && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Mail className="h-4 w-4" />
-                          <span className="truncate">{customer.email}</span>
-                        </div>
-                      )}
-                      {customer.address && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <MapPin className="h-4 w-4" />
-                          <span className="truncate">{customer.address}</span>
-                        </div>
-                      )}
+                    <div className="text-right shrink-0">
+                      <p className="text-sm text-muted-foreground">Outstanding</p>
+                      <p className="text-lg font-bold text-red-600">PKR {(customer.currentBalance || 0).toLocaleString()}</p>
                     </div>
-
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        size="sm"
-                        className="bg-green-600 hover:bg-green-700"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setIsPaymentModalOpen(true);
-                        }}
-                      >
-                        <DollarSign className="h-4 w-4 mr-1" />
-                        Payment
-                      </Button>
-                      <Button 
-                        size="sm"
-                        variant="outline"
-                        onClick={() => {
-                          setSelectedCustomer(customer);
-                          setIsReceivableModalOpen(true);
-                        }}
-                      >
-                        <Plus className="h-4 w-4 mr-1" />
-                        Add Credit
-                      </Button>
-                    </div>
-                    <Button 
+                  </div>
+                  <div className="flex items-center gap-2 ml-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
+                      onClick={() => handleSendMessage(customer)}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      className="bg-green-600 hover:bg-green-700"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setIsPaymentModalOpen(true);
+                      }}
+                    >
+                      <DollarSign className="h-4 w-4 mr-1" />
+                      Payment
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedCustomer(customer);
+                        setIsReceivableModalOpen(true);
+                      }}
+                    >
+                      <Plus className="h-4 w-4 mr-1" />
+                      Add Credit
+                    </Button>
+                    <Button
                       size="sm"
                       variant="ghost"
-                      className="w-full mt-2"
                       onClick={() => handleViewHistory(customer)}
                     >
                       <History className="h-4 w-4 mr-1" />
-                      View History
+                      History
                     </Button>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ))
             )}
           </div>
-        </TabsContent>
-
-        <TabsContent value="whatsapp">
-          <WhatsAppAutomation customers={customersWithCredits} />
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Modals */}
       {selectedCustomer && (
@@ -384,6 +398,51 @@ const Credits = () => {
           />
         </>
       )}
+
+      {/* Message Modal */}
+      <Dialog open={isMessageModalOpen} onOpenChange={setIsMessageModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send WhatsApp Message</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            {selectedCustomer && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Sending to: <span className="font-semibold text-foreground">{selectedCustomer.name}</span>
+                </p>
+                {selectedCustomer.phone && (
+                  <p className="text-sm text-muted-foreground">
+                    Phone: <span className="font-semibold text-foreground">{selectedCustomer.phone}</span>
+                  </p>
+                )}
+              </div>
+            )}
+            <div>
+              <Label htmlFor="message">Message</Label>
+              <Textarea
+                id="message"
+                value={messageText}
+                onChange={(e) => setMessageText(e.target.value)}
+                rows={6}
+                className="mt-1"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setIsMessageModalOpen(false)}>
+                Cancel
+              </Button>
+              <Button 
+                className="bg-green-600 hover:bg-green-700"
+                onClick={handleSendWhatsApp}
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Send via WhatsApp
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
@@ -731,159 +790,6 @@ const TransactionHistoryModal = ({
         </div>
       </DialogContent>
     </Dialog>
-  );
-};
-
-// WhatsApp Automation Component
-const WhatsAppAutomation = ({ customers }: { customers: any[] }) => {
-  const { toast } = useToast();
-  const [message, setMessage] = useState("Dear {name}, your outstanding balance is PKR {balance}. Please clear your dues at the earliest. Thank you!");
-  const [scheduleTime, setScheduleTime] = useState("09:00");
-  const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
-  const [isScheduled, setIsScheduled] = useState(false);
-
-  const handleSendNow = () => {
-    if (selectedCustomers.length === 0) {
-      toast({
-        title: "No Customers Selected",
-        description: "Please select at least one customer",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    const customersToSend = selectedCustomers.includes('all') 
-      ? customers 
-      : customers.filter(c => selectedCustomers.includes(c.id.toString()));
-
-    customersToSend.forEach(customer => {
-      if (customer.phone) {
-        const personalizedMsg = message
-          .replace('{name}', customer.name)
-          .replace('{balance}', (customer.currentBalance || 0).toLocaleString());
-        
-        const whatsappUrl = `https://wa.me/${customer.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(personalizedMsg)}`;
-        window.open(whatsappUrl, '_blank');
-      }
-    });
-
-    toast({
-      title: "Messages Sent",
-      description: `Opening WhatsApp for ${customersToSend.length} customers`,
-    });
-  };
-
-  const handleSchedule = () => {
-    if (selectedCustomers.length === 0) {
-      toast({
-        title: "No Customers Selected",
-        description: "Please select at least one customer",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    setIsScheduled(true);
-    toast({
-      title: "Automation Scheduled",
-      description: `Messages will be sent daily at ${scheduleTime}`,
-    });
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <MessageCircle className="h-5 w-5" />
-          WhatsApp Automation
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <Label htmlFor="customers-select">Select Customers</Label>
-          <Select 
-            value={selectedCustomers.includes('all') ? 'all' : selectedCustomers[0] || ''} 
-            onValueChange={(value) => setSelectedCustomers(value === 'all' ? ['all'] : [value])}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select customers" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Customers ({customers.length})</SelectItem>
-              {customers.map((customer) => (
-                <SelectItem key={customer.id} value={customer.id.toString()}>
-                  {customer.name} - PKR {(customer.currentBalance || 0).toLocaleString()}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-xs text-muted-foreground mt-1">
-            {selectedCustomers.includes('all') 
-              ? `All ${customers.length} customers selected` 
-              : `${selectedCustomers.length} customer(s) selected`}
-          </p>
-        </div>
-
-        <div>
-          <Label htmlFor="message-template">Message Template</Label>
-          <Textarea
-            id="message-template"
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            rows={4}
-            placeholder="Use {name} for customer name and {balance} for outstanding balance"
-          />
-          <p className="text-xs text-muted-foreground mt-1">
-            Available variables: {'{name}'}, {'{balance}'}
-          </p>
-        </div>
-
-        <div>
-          <Label htmlFor="schedule-time">Daily Schedule Time</Label>
-          <div className="flex gap-2">
-            <Input
-              id="schedule-time"
-              type="time"
-              value={scheduleTime}
-              onChange={(e) => setScheduleTime(e.target.value)}
-              className="flex-1"
-            />
-            {isScheduled && (
-              <Badge variant="default" className="flex items-center gap-1">
-                <Clock className="h-3 w-3" />
-                Active
-              </Badge>
-            )}
-          </div>
-        </div>
-
-        <div className="flex gap-2">
-          <Button 
-            onClick={handleSendNow}
-            className="flex-1 bg-green-600 hover:bg-green-700"
-          >
-            <Send className="h-4 w-4 mr-2" />
-            Send Now
-          </Button>
-          <Button 
-            onClick={handleSchedule}
-            variant={isScheduled ? "secondary" : "default"}
-            className="flex-1"
-          >
-            <Clock className="h-4 w-4 mr-2" />
-            {isScheduled ? 'Update Schedule' : 'Schedule Daily'}
-          </Button>
-        </div>
-
-        {isScheduled && (
-          <div className="p-4 bg-green-50 dark:bg-green-950 rounded-lg border border-green-200 dark:border-green-800">
-            <p className="text-sm text-green-800 dark:text-green-200">
-              ✓ Automation is active. Messages will be sent daily at {scheduleTime} to {selectedCustomers.includes('all') ? 'all customers' : `${selectedCustomers.length} customer(s)`}.
-            </p>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 };
 
