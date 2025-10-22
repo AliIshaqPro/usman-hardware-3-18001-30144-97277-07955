@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { salesApi } from "@/services/api";
@@ -62,12 +62,18 @@ const Orders = () => {
 
   // Items per page for server-side pagination
   const ITEMS_PER_PAGE = 20;
+  // Cache full dataset for current filters during search to avoid repeated network calls
+  const allSalesCacheRef = useRef<Sale[]>([]);
+  const cacheKeyRef = useRef<string>("");
 
   // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedSearchTerm(searchTerm);
-      setCurrentPage(1); // Reset to page 1 when search changes
+      const len = searchTerm.trim().length;
+      if (len === 0 || len >= 2) {
+        setDebouncedSearchTerm(searchTerm);
+        setCurrentPage(1); // Reset to page 1 when search changes
+      }
     }, 500);
 
     return () => clearTimeout(timer);
@@ -78,87 +84,74 @@ const Orders = () => {
   }, [filterStatus, filterCustomer, dateFrom, dateTo, currentPage, debouncedSearchTerm, filterPaymentMethod]);
 
   const fetchOrders = async () => {
+    const term = debouncedSearchTerm.trim();
+    const isSearching = term.length >= 2;
+    const currentKey = `${filterStatus}|${filterPaymentMethod}|${dateFrom}|${dateTo}|${filterCustomer || ''}`;
+
+    const shouldFetchFromNetwork = !isSearching || (cacheKeyRef.current !== currentKey || allSalesCacheRef.current.length === 0);
+
     try {
-      setLoading(true);
-      const params: any = {
-        limit: debouncedSearchTerm ? 10000 : ITEMS_PER_PAGE, // Fetch all when searching
-        page: debouncedSearchTerm ? 1 : currentPage // Always page 1 when searching
-      };
-
-      if (filterStatus !== "all") {
-        params.status = filterStatus;
+      if (shouldFetchFromNetwork) {
+        setLoading(true);
       }
 
-      if (filterCustomer) {
-        params.customerId = parseInt(filterCustomer);
-      }
+      // Build base filters
+      const baseParams: any = {};
+      if (filterStatus !== "all") baseParams.status = filterStatus;
+      if (filterCustomer) baseParams.customerId = parseInt(filterCustomer);
+      if (dateFrom) baseParams.dateFrom = dateFrom;
+      if (dateTo) baseParams.dateTo = dateTo;
+      if (filterPaymentMethod !== "all") baseParams.paymentMethod = filterPaymentMethod;
 
-      if (dateFrom) {
-        params.dateFrom = dateFrom;
-      }
-
-      if (dateTo) {
-        params.dateTo = dateTo;
-      }
-
-      if (filterPaymentMethod !== "all") {
-        params.paymentMethod = filterPaymentMethod;
-      }
-
-      const response = await salesApi.getAll(params);
-      
-      if (response.success) {
-        let filteredSales = response.data.sales || [];
-        
-        // Client-side filtering for search term
-        if (debouncedSearchTerm) {
-          const searchLower = debouncedSearchTerm.toLowerCase();
-          filteredSales = filteredSales.filter((sale: Sale) => {
-            return (
-              sale.orderNumber?.toLowerCase().includes(searchLower) ||
-              sale.customerName?.toLowerCase().includes(searchLower) ||
-              sale.createdBy?.toLowerCase().includes(searchLower) ||
-              sale.paymentMethod?.toLowerCase().includes(searchLower)
-            );
-          });
-          
-          // Client-side pagination when searching
-          const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-          const endIndex = startIndex + ITEMS_PER_PAGE;
-          const paginatedSales = filteredSales.slice(startIndex, endIndex);
-          
-          setOrders(paginatedSales);
-          setTotalPages(Math.ceil(filteredSales.length / ITEMS_PER_PAGE));
-          
-          // Update summary for filtered results
-          const totalSales = filteredSales.reduce((sum, sale) => sum + sale.total, 0);
-          setSummary({
-            totalSales: totalSales,
-            totalOrders: filteredSales.length,
-            avgOrderValue: filteredSales.length > 0 ? totalSales / filteredSales.length : 0
-          });
-        } else {
-          setOrders(filteredSales);
+      // When not searching, use server pagination directly
+      if (!isSearching) {
+        const response = await salesApi.getAll({ ...baseParams, limit: ITEMS_PER_PAGE, page: currentPage });
+        if (response.success) {
+          const sales = response.data.sales || [];
+          setOrders(sales);
           setTotalPages(response.data.pagination?.totalPages || 1);
-          
-          // Update summary from server
-          setSummary(response.data.summary || {
-            totalSales: 0,
-            totalOrders: 0,
-            avgOrderValue: 0
-          });
+          setSummary(response.data.summary || { totalSales: 0, totalOrders: 0, avgOrderValue: 0 });
+          // Reset search cache for new filter scope
+          allSalesCacheRef.current = [];
+          cacheKeyRef.current = currentKey;
+        }
+        return;
+      }
+
+      // Searching: ensure full dataset for current filters is cached
+      if (shouldFetchFromNetwork) {
+        const response = await salesApi.getAll({ ...baseParams, limit: 10000, page: 1 });
+        if (response.success) {
+          allSalesCacheRef.current = response.data.sales || [];
+          cacheKeyRef.current = currentKey;
+        } else {
+          allSalesCacheRef.current = [];
         }
       }
+
+      // Client-side filter and paginate from cache
+      const searchLower = term.toLowerCase();
+      const filteredSales = (allSalesCacheRef.current || []).filter((sale: Sale) =>
+        (sale.orderNumber?.toLowerCase().includes(searchLower)) ||
+        (sale.customerName?.toLowerCase().includes(searchLower)) ||
+        (sale.createdBy?.toLowerCase().includes(searchLower)) ||
+        (sale.paymentMethod?.toLowerCase().includes(searchLower))
+      );
+
+      const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+      const endIndex = startIndex + ITEMS_PER_PAGE;
+      const paginatedSales = filteredSales.slice(startIndex, endIndex);
+
+      setOrders(paginatedSales);
+      setTotalPages(Math.max(1, Math.ceil(filteredSales.length / ITEMS_PER_PAGE)));
+      const totalSales = filteredSales.reduce((sum, s) => sum + s.total, 0);
+      setSummary({ totalSales, totalOrders: filteredSales.length, avgOrderValue: filteredSales.length ? totalSales / filteredSales.length : 0 });
     } catch (error) {
       console.error('Error fetching orders:', error);
       const errorMessage = error instanceof Error ? error.message : "Failed to load orders data";
-      toast({
-        title: "Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: errorMessage, variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (shouldFetchFromNetwork) setLoading(false);
     }
   };
 
