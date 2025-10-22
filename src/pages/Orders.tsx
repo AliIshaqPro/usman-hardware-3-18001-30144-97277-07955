@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { salesApi } from "@/services/api";
+import { salesApi, customersApi } from "@/services/api";
 import { OrderDetailsModal } from "@/components/orders/OrderDetailsModal";
 import { PDFExportModal, ExportOptions } from "@/components/orders/PDFExportModal";
 import { OrdersHeader } from "@/components/orders/OrdersHeader";
@@ -86,7 +86,7 @@ const Orders = () => {
   const fetchOrders = async () => {
     const term = debouncedSearchTerm.trim();
     const isSearching = term.length >= 2;
-    const currentKey = `${filterStatus}|${filterPaymentMethod}|${dateFrom}|${dateTo}|${filterCustomer || ''}`;
+    const currentKey = `${filterStatus}|${filterPaymentMethod}|${dateFrom}|${dateTo}|${filterCustomer || ''}|${isSearching ? term.toLowerCase() : ''}`;
 
     const shouldFetchFromNetwork = !isSearching || (cacheKeyRef.current !== currentKey || allSalesCacheRef.current.length === 0);
 
@@ -118,14 +118,80 @@ const Orders = () => {
         return;
       }
 
-      // Searching: ensure full dataset for current filters is cached
+      // Searching: fetch orders by matching customers (server-side) and cache results
       if (shouldFetchFromNetwork) {
-        const response = await salesApi.getAll({ ...baseParams, limit: 10000, page: 1 });
-        if (response.success) {
-          allSalesCacheRef.current = response.data.sales || [];
+        // 1) Find matching customers by name
+        let matchedCustomerIds: number[] = [];
+        try {
+          // Try server-side customer search
+          const custRes = await customersApi.getAll({ search: term, limit: 1000, page: 1 });
+          let customers = custRes?.data?.customers || custRes?.data || [];
+
+          // If API doesn't support search, fetch all and filter locally
+          if (!customers?.length) {
+            const firstAll = await customersApi.getAll({ limit: 1000, page: 1 });
+            customers = firstAll?.data?.customers || firstAll?.data || [];
+            const totalPages = firstAll?.data?.pagination?.totalPages || 1;
+            if (totalPages > 1) {
+              const morePromises: Promise<any>[] = [];
+              for (let p = 2; p <= totalPages; p++) {
+                morePromises.push(customersApi.getAll({ limit: 1000, page: p }));
+              }
+              const more = await Promise.all(morePromises);
+              more.forEach(res => {
+                const items = res?.data?.customers || res?.data || [];
+                if (items?.length) customers.push(...items);
+              });
+            }
+            const lower = term.toLowerCase();
+            customers = customers.filter((c: any) => (c?.name || '').toLowerCase().includes(lower));
+          }
+
+          matchedCustomerIds = (customers || [])
+            .filter((c: any) => c?.id)
+            .map((c: any) => Number(c.id));
+        } catch (e) {
+          matchedCustomerIds = [];
+        }
+
+        // Helper to fetch all pages for a single customer (up to a safe cap)
+        const fetchAllForCustomer = async (customerId: number) => {
+          const first = await salesApi.getAll({ ...baseParams, customerId, limit: 1000, page: 1 });
+          const list = (first?.data?.sales || first?.data || []) as Sale[];
+          const totalPages = first?.data?.pagination?.totalPages || 1;
+          if (totalPages <= 1) return list;
+
+          const morePromises: Promise<any>[] = [];
+          for (let p = 2; p <= totalPages; p++) {
+            morePromises.push(salesApi.getAll({ ...baseParams, customerId, limit: 1000, page: p }));
+          }
+          const more = await Promise.all(morePromises);
+          more.forEach(res => {
+            const items = res?.data?.sales || res?.data || [];
+            if (items?.length) list.push(...items);
+          });
+          return list;
+        };
+
+        if (matchedCustomerIds.length > 0) {
+          // Fetch all sales for all matched customers in parallel
+          const results = await Promise.all(
+            matchedCustomerIds.map((id) => fetchAllForCustomer(id))
+          );
+          const aggregated: Sale[] = results.flat().sort((a, b) => {
+            // Sort by createdAt desc (fallback to date if needed)
+            const aTime = new Date(a.createdAt || a.date).getTime();
+            const bTime = new Date(b.createdAt || b.date).getTime();
+            return bTime - aTime;
+          });
+
+          allSalesCacheRef.current = aggregated;
           cacheKeyRef.current = currentKey;
         } else {
-          allSalesCacheRef.current = [];
+          // Fallback: pull a larger page and filter client-side
+          const response = await salesApi.getAll({ ...baseParams, limit: 10000, page: 1 });
+          allSalesCacheRef.current = response?.data?.sales || response?.data || [];
+          cacheKeyRef.current = currentKey;
         }
       }
 
