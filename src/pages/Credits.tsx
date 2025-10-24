@@ -44,8 +44,8 @@ const Credits = () => {
         const allCustomers = response.data?.customers || [];
         setCustomers(allCustomers);
         
-        // Filter customers with credits (currentBalance > 0)
-        const withCredits = allCustomers.filter((c: any) => (c.currentBalance || 0) > 0);
+        // Filter customers with credits (negative balance means they owe money)
+        const withCredits = allCustomers.filter((c: any) => (c.currentBalance || 0) < 0);
         setCustomersWithCredits(withCredits);
       }
     } catch (error) {
@@ -140,7 +140,7 @@ const Credits = () => {
 
   const handleSendMessage = (customer: any) => {
     setSelectedCustomer(customer);
-    setMessageText(`Dear ${customer.name}, your outstanding balance is PKR ${(customer.currentBalance || 0).toLocaleString()}. Please settle your dues at your earliest convenience. Thank you!`);
+    setMessageText(`Dear ${customer.name}, your outstanding balance is PKR ${Math.abs(customer.currentBalance || 0).toLocaleString()}. Please settle your dues at your earliest convenience. Thank you!`);
     setIsMessageModalOpen(true);
   };
 
@@ -173,7 +173,8 @@ const Credits = () => {
     return matchesSearch && matchesCustomer;
   });
 
-  const totalCredits = customersWithCredits.reduce((sum, customer) => sum + (customer.currentBalance || 0), 0);
+  // Calculate total credits (convert negative to positive for display)
+  const totalCredits = customersWithCredits.reduce((sum, customer) => sum + Math.abs(customer.currentBalance || 0), 0);
 
   if (loading) {
     return (
@@ -325,7 +326,7 @@ const Credits = () => {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-sm text-muted-foreground">Outstanding</p>
-                      <p className="text-lg font-bold text-red-600">PKR {(customer.currentBalance || 0).toLocaleString()}</p>
+                      <p className="text-lg font-bold text-red-600">PKR {Math.abs(customer.currentBalance || 0).toLocaleString()}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 ml-4">
