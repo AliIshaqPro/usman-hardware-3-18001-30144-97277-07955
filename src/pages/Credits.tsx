@@ -45,7 +45,7 @@ const Credits = () => {
         setCustomers(allCustomers);
         
         // Filter customers with credits (negative balance means they owe money)
-        const withCredits = allCustomers.filter((c: any) => (c.currentBalance || 0) < 0);
+       const withCredits = allCustomers.filter((c: any) => (c.currentBalance || 0) !== 0);
         setCustomersWithCredits(withCredits);
       }
     } catch (error) {
