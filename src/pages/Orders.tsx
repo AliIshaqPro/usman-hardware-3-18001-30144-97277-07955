@@ -61,7 +61,7 @@ const Orders = () => {
   const [isPDFExportModalOpen, setIsPDFExportModalOpen] = useState(false);
 
   // Items per page for server-side pagination
-  const ITEMS_PER_PAGE = 20;
+  const ITEMS_PER_PAGE = 50;
   // Cache full dataset for current filters during search to avoid repeated network calls
   const allSalesCacheRef = useRef<Sale[]>([]);
   const cacheKeyRef = useRef<string>("");

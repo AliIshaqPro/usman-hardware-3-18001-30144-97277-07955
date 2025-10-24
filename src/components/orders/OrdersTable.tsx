@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious } from "@/components/ui/pagination";
+import { Pagination, PaginationContent, PaginationItem, PaginationLink, PaginationNext, PaginationPrevious, PaginationEllipsis } from "@/components/ui/pagination";
 import { Calendar, Eye, FileText, User, Package, ChevronDown, ChevronRight } from "lucide-react";
 import { formatQuantity } from "@/lib/utils";
 
@@ -286,20 +286,40 @@ export const OrdersTable = ({
                 />
               </PaginationItem>
               
-              {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                const pageNum = i + 1;
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      onClick={() => onPageChange(pageNum)}
-                      isActive={currentPage === pageNum}
-                      className="cursor-pointer"
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
+{(() => {
+                const pages: (number | 'ellipsis')[] = [];
+                const showNeighbors = 2;
+                const addPage = (p: number) => {
+                  if (p >= 1 && p <= totalPages) pages.push(p);
+                };
+
+                addPage(1);
+                const start = Math.max(2, currentPage - showNeighbors);
+                const end = Math.min(totalPages - 1, currentPage + showNeighbors);
+
+                if (start > 2) pages.push('ellipsis');
+                for (let p = start; p <= end; p++) addPage(p);
+                if (end < totalPages - 1) pages.push('ellipsis');
+                if (totalPages > 1) addPage(totalPages);
+
+                return pages.map((p, idx) =>
+                  p === 'ellipsis' ? (
+                    <PaginationItem key={`e-${idx}`}>
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  ) : (
+                    <PaginationItem key={p}>
+                      <PaginationLink
+                        onClick={() => onPageChange(p)}
+                        isActive={currentPage === p}
+                        className="cursor-pointer"
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  )
                 );
-              })}
+              })()}
               
               <PaginationItem>
                 <PaginationNext 
