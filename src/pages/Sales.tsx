@@ -19,6 +19,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { formatQuantity } from "@/lib/utils";
+import { apiConfig } from "@/utils/apiConfig";
 
 interface CartItem {
   productId: number;
@@ -470,6 +471,44 @@ const formatPakistaniTime = (timeString: string): string => {
       const response = await salesApi.create(saleData);
       
       if (response.success) {
+        // Update customer balance for credit sales
+        if (paymentMethod === 'credit' && selectedCustomer?.id) {
+          try {
+            const balanceUpdateResponse = await fetch(`${apiConfig.getBaseUrl()}/customers/update-balance`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                customerId: selectedCustomer.id,
+                amount: totalAmount,
+                type: 'credit',
+                description: `Credit sale - Order ${response.data?.orderNumber || 'N/A'}`
+              })
+            });
+
+            const balanceResult = await balanceUpdateResponse.json();
+            
+            if (balanceResult.success) {
+              console.log('Customer balance updated successfully:', balanceResult);
+            } else {
+              console.error('Failed to update customer balance:', balanceResult.message);
+              toast({
+                title: "Balance Update Warning",
+                description: "Sale completed but customer balance may not be updated correctly.",
+                variant: "default"
+              });
+            }
+          } catch (balanceError) {
+            console.error('Error updating customer balance:', balanceError);
+            toast({
+              title: "Balance Update Warning",
+              description: "Sale completed but customer balance may not be updated correctly.",
+              variant: "default"
+            });
+          }
+        }
+
         // AUTO-GENERATE RECEIPT after successful sale
         await generateReceiptPDF({
           id: response.data?.id || Date.now(),
