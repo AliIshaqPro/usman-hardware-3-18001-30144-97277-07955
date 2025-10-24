@@ -16,7 +16,6 @@ import { ProductCard } from "@/components/sales/ProductCard";
 import { CartSidebar } from "@/components/sales/CartSidebar";
 import { QuickProductAddModal } from "@/components/sales/QuickProductAddModal";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { useCustomerBalance } from "@/hooks/useCustomerBalance";
 import jsPDF from 'jspdf';
 import QRCode from 'qrcode';
 import { formatQuantity } from "@/lib/utils";
@@ -40,7 +39,6 @@ interface CartItem {
 const Sales = () => {
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const { updateBalanceForOrderStatusChange } = useCustomerBalance();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [products, setProducts] = useState<any[]>([]);
@@ -548,36 +546,6 @@ const formatPakistaniTime = (timeString: string): string => {
         } catch (cashFlowError) {
           console.error('Failed to create cash flow entry for sale:', cashFlowError);
           // Don't break the sale flow if cash flow fails
-        }
-
-        // Update customer balance for credit sales
-        if (paymentMethod.toLowerCase() === 'credit' && selectedCustomer?.id) {
-          try {
-            console.log('Updating customer balance for credit sale:', {
-              customerId: selectedCustomer.id,
-              orderNumber: response.data?.orderNumber,
-              totalAmount: totalAmount
-            });
-            
-            await updateBalanceForOrderStatusChange(
-              response.data?.id || 0,
-              selectedCustomer.id,
-              response.data?.orderNumber || `ORD-${Date.now()}`,
-              totalAmount,
-              'completed',
-              'pending'
-            );
-            
-            console.log('Customer balance updated successfully for credit sale');
-          } catch (balanceError) {
-            console.error('Failed to update customer balance:', balanceError);
-            // Don't break the sale flow if balance update fails, just log it
-            toast({
-              title: "Balance Update Warning",
-              description: "Sale completed but customer balance may not be updated. Please check credit page.",
-              variant: "default"
-            });
-          }
         }
 
         setCart([]);
